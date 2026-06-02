@@ -469,6 +469,88 @@ func (h *Handler) FinishElection(c *gin.Context) {
 	})
 }
 
+// ===== 申诉管理 =====
+
+// ListAppeals 申诉列表
+func (h *Handler) ListAppeals(c *gin.Context) {
+	status, _ := strconv.Atoi(c.DefaultQuery("status", "-1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+
+	var appeals []config.Appeal
+	query := h.db.Preload("User").Order("created_at DESC")
+	if status >= 0 {
+		query = query.Where("status = ?", status)
+	}
+
+	var total int64
+	query.Model(&config.Appeal{}).Count(&total)
+
+	if err := query.Limit(limit).Offset(offset).Find(&appeals).Error; err != nil {
+		response.Error(c, 10001, "获取申诉列表失败")
+		return
+	}
+
+	response.Success(c, gin.H{
+		"items": appeals,
+		"total": total,
+	})
+}
+
+// HandleAppeal 处理申诉
+func (h *Handler) HandleAppeal(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.Error(c, 20002, "参数错误")
+		return
+	}
+
+	var req struct {
+		Status       int8   `json:"status" binding:"required,oneof=1 2"`
+		HandleResult string `json:"handleResult" binding:"max=500"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, 20002, "参数错误")
+		return
+	}
+
+	var appeal config.Appeal
+	if err := h.db.First(&appeal, id).Error; err != nil {
+		response.Error(c, 20004, "申诉记录不存在")
+		return
+	}
+	if appeal.Status != 0 {
+		response.Error(c, 20005, "该申诉已被处理")
+		return
+	}
+
+	adminID := c.GetUint64("userID")
+	now := time.Now()
+
+	updates := map[string]interface{}{
+		"status":        req.Status,
+		"handler_id":    adminID,
+		"handle_result": req.HandleResult,
+		"handled_at":    &now,
+	}
+
+	if err := h.db.Model(&config.Appeal{}).Where("id = ?", id).Updates(updates).Error; err != nil {
+		response.Error(c, 10001, "处理申诉失败")
+		return
+	}
+
+	// 如果通过，恢复目标内容状态
+	if req.Status == 1 {
+		if appeal.TargetType == 1 {
+			h.db.Model(&config.Post{}).Where("id = ?", appeal.TargetID).Update("status", 0)
+		} else {
+			h.db.Model(&config.Comment{}).Where("id = ?", appeal.TargetID).Update("status", 0)
+		}
+	}
+
+	response.Success(c, nil)
+}
+
 func RegisterRoutes(r *gin.RouterGroup, db *gorm.DB, rdb *redis.Client) {
 	h := NewHandler(db, rdb)
 
@@ -494,4 +576,8 @@ func RegisterRoutes(r *gin.RouterGroup, db *gorm.DB, rdb *redis.Client) {
 	r.GET("/elections", h.ListElections)
 	r.POST("/elections", h.CreateElection)
 	r.POST("/elections/:id/finish", h.FinishElection)
+
+	// 申诉管理
+	r.GET("/appeals", h.ListAppeals)
+	r.POST("/appeals/:id/handle", h.HandleAppeal)
 }

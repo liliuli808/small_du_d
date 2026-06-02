@@ -14,6 +14,7 @@ import (
 	"anonymous-community/internal/modules/report"
 	"anonymous-community/internal/modules/election"
 	"anonymous-community/internal/modules/notification"
+	"anonymous-community/internal/modules/appeal"
 	"anonymous-community/internal/modules/upload"
 	"anonymous-community/internal/modules/admin"
 
@@ -68,6 +69,7 @@ func main() {
 			report.RegisterRoutes(auth, db, rdb)
 			election.RegisterRoutes(auth, db, rdb)
 			notification.RegisterRoutes(auth, db, rdb)
+			appeal.RegisterRoutes(auth, db, rdb)
 			upload.RegisterRoutes(auth, db, rdb, cfg)
 		}
 

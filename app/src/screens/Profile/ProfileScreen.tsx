@@ -18,6 +18,7 @@ const menuItems = [
   { icon: 'comment-outline', label: '我的评论', color: '#14B8A6' },
   { icon: 'bookmark-outline', label: '我的收藏', color: '#F59E0B' },
   { icon: 'vote-outline', label: '分区选举', color: '#8B5CF6', route: 'Election' },
+  { icon: 'gavel', label: '我的申诉', color: '#EC4899', route: 'MyAppeals' },
   { icon: 'block-helper', label: '黑名单', color: '#EF4444' },
   { icon: 'shield-account-outline', label: '账号与安全', color: '#8B5CF6' },
   { icon: 'information-outline', label: '关于我们', color: '#94A3B8' },

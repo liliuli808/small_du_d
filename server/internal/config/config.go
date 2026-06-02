@@ -103,6 +103,7 @@ func autoMigrate(db *gorm.DB) {
 		&ElectionVote{},
 		&Report{},
 		&Notification{},
+		&Appeal{},
 		&ModerationLog{},
 	)
 }

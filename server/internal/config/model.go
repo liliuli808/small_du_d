@@ -203,6 +203,23 @@ type Notification struct {
 	CreatedAt  time.Time `json:"createdAt"`
 }
 
+// Appeal 申诉表
+type Appeal struct {
+	ID           uint64     `gorm:"primaryKey" json:"id"`
+	UserID       uint64     `gorm:"index;not null" json:"userId"`
+	TargetType   int8       `gorm:"not null" json:"targetType"` // 1:帖子 2:评论
+	TargetID     uint64     `gorm:"index;not null" json:"targetId"`
+	CategoryID   *uint64    `json:"categoryId,omitempty"`
+	Reason       string     `gorm:"type:text;not null" json:"reason"`
+	Status       int8       `gorm:"default:0" json:"status"` // 0:待处理 1:已通过 2:已驳回
+	HandlerID    *uint64    `json:"handlerId,omitempty"`
+	HandleResult string     `gorm:"type:text" json:"handleResult,omitempty"`
+	HandledAt    *time.Time `json:"handledAt,omitempty"`
+	CreatedAt    time.Time  `json:"createdAt"`
+
+	User User `gorm:"foreignKey:UserID" json:"user,omitempty"`
+}
+
 // ModerationLog 管理操作日志表
 type ModerationLog struct {
 	ID           uint64    `gorm:"primaryKey" json:"id"`

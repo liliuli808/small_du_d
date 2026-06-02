@@ -9,6 +9,7 @@ import {
   WarningOutlined,
   SafetyOutlined,
   TrophyOutlined,
+  GavelOutlined,
   LogoutOutlined,
 } from '@ant-design/icons'
 import { useAuthStore } from '../store/authStore'
@@ -23,6 +24,7 @@ const menuItems = [
   { key: '/reports', icon: <WarningOutlined />, label: '举报管理' },
   { key: '/moderators', icon: <SafetyOutlined />, label: '负责人管理' },
   { key: '/elections', icon: <TrophyOutlined />, label: '选举管理' },
+  { key: '/appeals', icon: <GavelOutlined />, label: '申诉管理' },
 ]
 
 export default function Layout() {

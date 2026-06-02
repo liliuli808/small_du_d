@@ -8,3 +8,4 @@ export { moderationAPI } from './moderation';
 export { electionAPI } from './election';
 export { reportAPI } from './report';
 export { notificationAPI } from './notification';
+export { appealAPI } from './appeal';

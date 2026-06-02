@@ -8,6 +8,7 @@ import Posts from './pages/Posts'
 import Moderators from './pages/Moderators'
 import Elections from './pages/Elections'
 import Reports from './pages/Reports'
+import Appeals from './pages/Appeals'
 import { useAuthStore } from './store/authStore'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -35,6 +36,7 @@ function App() {
           <Route path="moderators" element={<Moderators />} />
           <Route path="elections" element={<Elections />} />
           <Route path="reports" element={<Reports />} />
+          <Route path="appeals" element={<Appeals />} />
         </Route>
       </Routes>
     </BrowserRouter>

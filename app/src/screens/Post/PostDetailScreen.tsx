@@ -18,7 +18,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import FastImage from 'react-native-fast-image';
-import { postAPI, reportAPI, commentAPI, chatAPI } from '../../api';
+import { postAPI, reportAPI, commentAPI, chatAPI, appealAPI } from '../../api';
 import Avatar from '../../components/Avatar';
 import { RootStackParamList } from '../../navigation/RootNavigator';
 import { useAuthStore } from '../../store/authStore';
@@ -55,6 +55,9 @@ export default function PostDetailScreen() {
   const [reportReasonType, setReportReasonType] = useState(1);
   const [reportText, setReportText] = useState('');
   const [reporting, setReporting] = useState(false);
+  const [showAppealModal, setShowAppealModal] = useState(false);
+  const [appealText, setAppealText] = useState('');
+  const [appealing, setAppealing] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   // 获取帖子详情
@@ -153,6 +156,30 @@ export default function PostDetailScreen() {
         onPress: () => deleteComment.mutate(comment.id),
       },
     ]);
+  };
+
+  const handleAppeal = async () => {
+    const reason = appealText.trim();
+    if (!reason) {
+      Alert.alert('提示', '请填写申诉理由');
+      return;
+    }
+    setAppealing(true);
+    try {
+      await appealAPI.create({
+        targetType: 1,
+        targetId: postId,
+        categoryId: post?.categoryId,
+        reason,
+      });
+      setAppealing(false);
+      setShowAppealModal(false);
+      setAppealText('');
+      Alert.alert('成功', '申诉已提交，我们会尽快处理');
+    } catch (err: any) {
+      setAppealing(false);
+      Alert.alert('失败', err?.response?.data?.message || err?.message || '申诉提交失败');
+    }
   };
 
   const handleReport = async () => {
@@ -314,6 +341,17 @@ export default function PostDetailScreen() {
         {/* 帖子内容 */}
         <Text style={styles.postContent}>{post.content}</Text>
 
+        {/* 申诉提示（帖子被删除时） */}
+        {post.status === 1 && post.userId === user?.id && (
+          <View style={styles.appealBanner}>
+            <Icon name="alert-circle-outline" size={18} color="#F59E0B" />
+            <Text style={styles.appealBannerText}>该帖子已被删除</Text>
+            <TouchableOpacity style={styles.appealBannerBtn} onPress={() => setShowAppealModal(true)}>
+              <Text style={styles.appealBannerBtnText}>申诉</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* 图片 */}
         {post.images && post.images.length > 0 && (
           <View style={styles.imageContainer}>
@@ -387,6 +425,56 @@ export default function PostDetailScreen() {
           )}
         </TouchableOpacity>
       </View>
+
+      {/* 申诉弹窗 */}
+      <Modal
+        visible={showAppealModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowAppealModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>内容申诉</Text>
+            <Text style={styles.modalSubtitle}>请说明申诉理由，我们会尽快处理</Text>
+
+            <TextInput
+              style={styles.reportInput}
+              multiline
+              numberOfLines={4}
+              placeholder="填写申诉理由（5-500字）..."
+              placeholderTextColor="#94A3B8"
+              value={appealText}
+              onChangeText={setAppealText}
+              textAlignVertical="top"
+              maxLength={500}
+            />
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.modalBtnCancel]}
+                onPress={() => {
+                  setShowAppealModal(false);
+                  setAppealText('');
+                }}
+              >
+                <Text style={styles.modalBtnCancelText}>取消</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.modalBtnSubmit]}
+                onPress={handleAppeal}
+                disabled={appealing || appealText.trim().length < 5}
+              >
+                {appealing ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <Text style={styles.modalBtnSubmitText}>提交申诉</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* 举报弹窗 */}
       <Modal
@@ -541,6 +629,32 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 26,
     marginBottom: 16,
+  },
+  appealBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+    marginBottom: 16,
+    gap: 8,
+  },
+  appealBannerText: {
+    flex: 1,
+    color: '#92400E',
+    fontSize: 14,
+  },
+  appealBannerBtn: {
+    backgroundColor: '#F59E0B',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  appealBannerBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '600',
   },
   imageContainer: {
     gap: 8,

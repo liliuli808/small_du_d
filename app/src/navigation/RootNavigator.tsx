@@ -10,6 +10,7 @@ import CategoryDetailScreen from '../screens/Category/CategoryDetailScreen';
 import ModeratorPanelScreen from '../screens/Category/ModeratorPanelScreen';
 import ElectionScreen from '../screens/Category/ElectionScreen';
 import EditProfileScreen from '../screens/Profile/EditProfileScreen';
+import MyAppealsScreen from '../screens/Profile/MyAppealsScreen';
 import NotificationScreen from '../screens/Message/NotificationScreen';
 
 export type RootStackParamList = {
@@ -22,6 +23,7 @@ export type RootStackParamList = {
   ModeratorPanel: { categoryId: number; categoryName: string };
   Election: undefined;
   EditProfile: undefined;
+  MyAppeals: undefined;
   Notification: undefined;
 };
 
@@ -63,6 +65,11 @@ export default function RootNavigator() {
           <Stack.Screen
             name="EditProfile"
             component={EditProfileScreen}
+            options={{ animation: 'slide_from_right' }}
+          />
+          <Stack.Screen
+            name="MyAppeals"
+            component={MyAppealsScreen}
             options={{ animation: 'slide_from_right' }}
           />
           <Stack.Screen
