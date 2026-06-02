@@ -1,6 +1,7 @@
-import { useState } from 'react'
-import { Card, Table, Tag, Button, Input, Select, Space } from 'antd'
+import { useState, useEffect } from 'react'
+import { Card, Table, Tag, Button, Input, Select, Space, message, Popconfirm } from 'antd'
 import { SearchOutlined } from '@ant-design/icons'
+import { userAPI, User } from '../api/user'
 
 const { Option } = Select
 
@@ -10,39 +11,101 @@ const statusMap: Record<number, { text: string; color: string }> = {
   2: { text: '封禁', color: 'error' },
 }
 
-const mockUsers = [
-  { id: 1, username: 'user001', nickname: '神秘的路人', status: 0, createdAt: '2024-01-15' },
-  { id: 2, username: 'user002', nickname: '孤独的猫', status: 0, createdAt: '2024-02-01' },
-  { id: 3, username: 'user003', nickname: '快乐的风', status: 1, createdAt: '2024-02-10' },
-  { id: 4, username: 'user004', nickname: '忧郁的星', status: 2, createdAt: '2024-03-01' },
-]
-
-const columns = [
-  { title: 'ID', dataIndex: 'id', width: 80 },
-  { title: '账号名', dataIndex: 'username' },
-  { title: '匿名昵称', dataIndex: 'nickname' },
-  {
-    title: '状态',
-    dataIndex: 'status',
-    render: (status: number) => (
-      <Tag color={statusMap[status]?.color}>{statusMap[status]?.text}</Tag>
-    ),
-  },
-  { title: '注册时间', dataIndex: 'createdAt' },
-  {
-    title: '操作',
-    render: () => (
-      <Space>
-        <Button type="link" size="small">查看</Button>
-        <Button type="link" size="small" danger>封禁</Button>
-      </Space>
-    ),
-  },
-]
-
 export default function Users() {
+  const [users, setUsers] = useState<User[]>([])
+  const [loading, setLoading] = useState(false)
+  const [total, setTotal] = useState(0)
   const [status, setStatus] = useState<number | undefined>()
   const [keyword, setKeyword] = useState('')
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 20 })
+
+  const fetchUsers = async () => {
+    setLoading(true)
+    try {
+      const res = await userAPI.getList({
+        status,
+        keyword: keyword || undefined,
+        limit: pagination.pageSize,
+        offset: (pagination.current - 1) * pagination.pageSize,
+      })
+      setUsers(res.items || [])
+      setTotal(res.total || 0)
+    } catch (err: any) {
+      message.error(err?.message || '获取用户列表失败')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchUsers()
+  }, [status, pagination.current, pagination.pageSize])
+
+  const handleSearch = () => {
+    setPagination({ ...pagination, current: 1 })
+    fetchUsers()
+  }
+
+  const handleUpdateStatus = async (id: number, newStatus: number) => {
+    try {
+      await userAPI.updateStatus(id, newStatus)
+      message.success('状态更新成功')
+      fetchUsers()
+    } catch (err: any) {
+      message.error(err?.message || '更新失败')
+    }
+  }
+
+  const columns = [
+    { title: 'ID', dataIndex: 'id', width: 80 },
+    { title: '账号名', dataIndex: 'username' },
+    { title: '匿名昵称', dataIndex: 'nickname' },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      width: 100,
+      render: (status: number) => (
+        <Tag color={statusMap[status]?.color}>{statusMap[status]?.text}</Tag>
+      ),
+    },
+    {
+      title: '注册时间',
+      dataIndex: 'createdAt',
+      render: (v: string) => new Date(v).toLocaleString('zh-CN'),
+    },
+    {
+      title: '操作',
+      width: 200,
+      render: (_: any, record: User) => (
+        <Space>
+          {record.status === 0 && (
+            <>
+              <Popconfirm
+                title="确定禁言该用户？"
+                onConfirm={() => handleUpdateStatus(record.id, 1)}
+              >
+                <Button type="link" size="small">禁言</Button>
+              </Popconfirm>
+              <Popconfirm
+                title="确定封禁该用户？"
+                onConfirm={() => handleUpdateStatus(record.id, 2)}
+              >
+                <Button type="link" size="small" danger>封禁</Button>
+              </Popconfirm>
+            </>
+          )}
+          {record.status !== 0 && (
+            <Popconfirm
+              title="确定恢复该用户？"
+              onConfirm={() => handleUpdateStatus(record.id, 0)}
+            >
+              <Button type="link" size="small" style={{ color: '#10B981' }}>恢复</Button>
+            </Popconfirm>
+          )}
+        </Space>
+      ),
+    },
+  ]
 
   return (
     <div>
@@ -54,7 +117,8 @@ export default function Users() {
             prefix={<SearchOutlined />}
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
-            style={{ width: 240, background: '#F1F5F9', borderColor: '#E2E8F0', color: '#1E293B' }}
+            onPressEnter={handleSearch}
+            style={{ width: 240 }}
           />
           <Select
             placeholder="状态"
@@ -67,17 +131,20 @@ export default function Users() {
             <Option value={1}>禁言</Option>
             <Option value={2}>封禁</Option>
           </Select>
-          <Button type="primary" style={{ background: '#3B82F6', borderColor: '#3B82F6' }}>
-            查询
-          </Button>
+          <Button type="primary" onClick={handleSearch}>查询</Button>
         </Space>
       </Card>
       <Table
         columns={columns}
-        dataSource={mockUsers}
+        dataSource={users}
         rowKey="id"
-        pagination={{ pageSize: 10 }}
-        style={{ background: '#FFFFFF' }}
+        loading={loading}
+        pagination={{
+          current: pagination.current,
+          pageSize: pagination.pageSize,
+          total,
+          onChange: (page, pageSize) => setPagination({ current: page, pageSize: pageSize || 20 }),
+        }}
       />
     </div>
   )

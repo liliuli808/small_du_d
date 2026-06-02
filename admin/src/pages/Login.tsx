@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Card, Form, Input, Button, Typography, message } from 'antd'
 import { UserOutlined, LockOutlined } from '@ant-design/icons'
 import { useAuthStore } from '../store/authStore'
+import { authAPI } from '../api'
 
 const { Title, Text } = Typography
 
@@ -14,18 +15,17 @@ export default function LoginPage() {
   const handleLogin = async (values: { username: string; password: string }) => {
     setLoading(true)
     try {
-      // TODO: 调用实际登录API
-      // 模拟登录成功
-      login('mock-token', {
-        id: 1,
-        username: values.username,
-        nickname: '管理员',
-        role: 1,
+      const res = await authAPI.login(values)
+      login(res.accessToken, {
+        id: res.user?.id,
+        username: res.user?.username,
+        nickname: res.user?.nickname,
+        role: res.user?.role,
       })
       message.success('登录成功')
       navigate('/')
-    } catch (error) {
-      message.error('登录失败')
+    } catch (error: any) {
+      message.error(error?.message || '登录失败')
     } finally {
       setLoading(false)
     }
