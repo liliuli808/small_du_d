@@ -1,17 +1,18 @@
-import React, { memo } from 'react';
+import React, { memo, useState, useCallback } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
   Dimensions,
+  Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import FastImage from 'react-native-fast-image';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/RootNavigator';
-import { Post } from '../api/post';
+import { Post, postAPI } from '../api/post';
 import Avatar from './Avatar';
 
 const { width } = Dimensions.get('window');
@@ -37,6 +38,29 @@ function formatTime(timeStr: string): string {
 
 const PostCard = memo(function PostCard({ post }: PostCardProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const [liked, setLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(post.likeCount);
+  const [liking, setLiking] = useState(false);
+
+  const handleLike = useCallback(async () => {
+    if (liking) return;
+    setLiking(true);
+    try {
+      if (liked) {
+        await postAPI.unlikePost(post.id);
+        setLiked(false);
+        setLikeCount((prev) => Math.max(0, prev - 1));
+      } else {
+        await postAPI.likePost(post.id);
+        setLiked(true);
+        setLikeCount((prev) => prev + 1);
+      }
+    } catch (err: any) {
+      Alert.alert('失败', err?.message || '操作失败');
+    } finally {
+      setLiking(false);
+    }
+  }, [liked, liking, post.id]);
 
   return (
     <TouchableOpacity
@@ -83,16 +107,24 @@ const PostCard = memo(function PostCard({ post }: PostCardProps) {
           <Text style={styles.categoryText}>{post.category?.name || '分区'}</Text>
         </View>
         <View style={styles.actions}>
-          <TouchableOpacity style={styles.actionButton} activeOpacity={0.7}>
-            <Icon name="heart-outline" size={18} color="#94A3B8" />
-            <Text style={styles.actionText}>{post.likeCount}</Text>
+          <TouchableOpacity
+            style={styles.actionButton}
+            activeOpacity={0.7}
+            onPress={(e) => {
+              e.stopPropagation();
+              handleLike();
+            }}
+          >
+            <Icon
+              name={liked ? 'heart' : 'heart-outline'}
+              size={18}
+              color={liked ? '#EF4444' : '#94A3B8'}
+            />
+            <Text style={[styles.actionText, liked && styles.actionTextActive]}>{likeCount}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.actionButton} activeOpacity={0.7}>
             <Icon name="comment-outline" size={18} color="#94A3B8" />
             <Text style={styles.actionText}>{post.commentCount}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.actionButton} activeOpacity={0.7}>
-            <Icon name="share-outline" size={18} color="#94A3B8" />
           </TouchableOpacity>
         </View>
       </View>
@@ -189,6 +221,9 @@ const styles = StyleSheet.create({
   actionText: {
     color: '#64748B',
     fontSize: 13,
+  },
+  actionTextActive: {
+    color: '#EF4444',
   },
 });
 

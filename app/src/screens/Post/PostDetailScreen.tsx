@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,37 +11,91 @@ import {
   ActivityIndicator,
   Modal,
   Alert,
+  RefreshControl,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import FastImage from 'react-native-fast-image';
-import { postAPI, reportAPI } from '../../api';
+import { postAPI, reportAPI, commentAPI, chatAPI } from '../../api';
 import Avatar from '../../components/Avatar';
 import { RootStackParamList } from '../../navigation/RootNavigator';
+import { useAuthStore } from '../../store/authStore';
+import { Comment } from '../../api/comment';
 
 type PostDetailRouteProp = RouteProp<RootStackParamList, 'PostDetail'>;
 
+function formatTime(timeStr: string): string {
+  const date = new Date(timeStr);
+  const now = new Date();
+  const diff = now.getTime() - date.getTime();
+  const minutes = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days = Math.floor(diff / 86400000);
 
-
-
+  if (minutes < 1) return '刚刚';
+  if (minutes < 60) return `${minutes}分钟前`;
+  if (hours < 24) return `${hours}小时前`;
+  if (days < 30) return `${days}天前`;
+  return `${date.getMonth() + 1}月${date.getDate()}日`;
+}
 
 export default function PostDetailScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<PostDetailRouteProp>();
+  const queryClient = useQueryClient();
   const { postId } = route.params;
+  const user = useAuthStore((state) => state.user);
 
   const [commentText, setCommentText] = useState('');
   const [liked, setLiked] = useState(false);
+  const [sending, setSending] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportReasonType, setReportReasonType] = useState(1);
   const [reportText, setReportText] = useState('');
   const [reporting, setReporting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
+  // 获取帖子详情
   const { data: post, isLoading } = useQuery({
     queryKey: ['post', postId],
     queryFn: () => postAPI.getPost(postId),
+  });
+
+  // 获取评论列表
+  const {
+    data: comments,
+    isLoading: commentsLoading,
+    refetch: refetchComments,
+  } = useQuery({
+    queryKey: ['comments', postId],
+    queryFn: () => commentAPI.getList(postId, 50, 0) as Promise<Comment[]>,
+  });
+
+  // 发表评论
+  const sendComment = useMutation({
+    mutationFn: (content: string) => commentAPI.create(postId, content),
+    onSuccess: () => {
+      setCommentText('');
+      queryClient.invalidateQueries({ queryKey: ['comments', postId] });
+      queryClient.invalidateQueries({ queryKey: ['post', postId] });
+    },
+    onError: (err: any) => {
+      Alert.alert('失败', err?.message || '评论发送失败');
+    },
+  });
+
+  // 删除评论
+  const deleteComment = useMutation({
+    mutationFn: (id: number) => commentAPI.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['comments', postId] });
+      queryClient.invalidateQueries({ queryKey: ['post', postId] });
+    },
+    onError: (err: any) => {
+      Alert.alert('失败', err?.message || '删除失败');
+    },
   });
 
   const handleLike = async () => {
@@ -53,9 +107,51 @@ export default function PostDetailScreen() {
         await postAPI.likePost(postId);
         setLiked(true);
       }
+      queryClient.invalidateQueries({ queryKey: ['post', postId] });
     } catch (error) {
       // ignore
     }
+  };
+
+  const handleChat = async () => {
+    if (!post?.userId || post.userId === user?.id) {
+      Alert.alert('提示', '不能和自己私聊');
+      return;
+    }
+    try {
+      const res = await chatAPI.createConversation(post.userId);
+      navigation.navigate('ChatDetail', {
+        conversationId: res.id,
+        nickname: post.user?.nickname || '匿名用户',
+      });
+    } catch (err: any) {
+      Alert.alert('失败', err?.message || '创建会话失败');
+    }
+  };
+
+  const handleSendComment = async () => {
+    const content = commentText.trim();
+    if (!content) {
+      Alert.alert('提示', '请输入评论内容');
+      return;
+    }
+    setSending(true);
+    try {
+      await sendComment.mutateAsync(content);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleDeleteComment = (comment: Comment) => {
+    Alert.alert('确认删除', '确定要删除这条评论吗？', [
+      { text: '取消', style: 'cancel' },
+      {
+        text: '删除',
+        style: 'destructive',
+        onPress: () => deleteComment.mutate(comment.id),
+      },
+    ]);
   };
 
   const handleReport = async () => {
@@ -66,7 +162,7 @@ export default function PostDetailScreen() {
     setReporting(true);
     try {
       await reportAPI.create({
-        targetType: 1, // 帖子
+        targetType: 1,
         targetId: postId,
         categoryId: post?.categoryId,
         reasonType: reportReasonType,
@@ -78,8 +174,46 @@ export default function PostDetailScreen() {
       Alert.alert('成功', '举报已提交，我们会尽快处理');
     } catch (err: any) {
       setReporting(false);
-      Alert.alert('失败', err?.response?.data?.message || '举报提交失败');
+      Alert.alert('失败', err?.message || '举报提交失败');
     }
+  };
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['post', postId] }),
+      refetchComments(),
+    ]);
+    setRefreshing(false);
+  }, [postId, queryClient, refetchComments]);
+
+  // 渲染单条评论
+  const renderComment = (comment: Comment) => {
+    const isMine = user?.id === comment.userId;
+    return (
+      <View key={comment.id} style={styles.commentItem}>
+        <Avatar nickname={comment.user?.nickname || '?'} size={36} />
+        <View style={styles.commentBody}>
+          <View style={styles.commentHeader}>
+            <Text style={styles.commentNickname}>
+              {comment.user?.nickname || '匿名用户'}
+            </Text>
+            <Text style={styles.commentTime}>
+              {formatTime(comment.createdAt)}
+            </Text>
+          </View>
+          <Text style={styles.commentContent}>{comment.content}</Text>
+        </View>
+        {isMine && (
+          <TouchableOpacity
+            style={styles.commentDelete}
+            onPress={() => handleDeleteComment(comment)}
+          >
+            <Icon name="trash-can-outline" size={16} color="#94A3B8" />
+          </TouchableOpacity>
+        )}
+      </View>
+    );
   };
 
   if (isLoading) {
@@ -98,7 +232,6 @@ export default function PostDetailScreen() {
     );
   }
 
-    
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -107,7 +240,7 @@ export default function PostDetailScreen() {
       {/* 顶部导航 */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Icon name="arrow-left" size={24} color="#FFFFFF" />
+          <Icon name="arrow-left" size={24} color="#1E293B" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{post.category?.name || '帖子详情'}</Text>
         <TouchableOpacity onPress={() => setShowReportModal(true)}>
@@ -115,14 +248,26 @@ export default function PostDetailScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        style={styles.content}
+        keyboardShouldPersistTaps="handled"
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3B82F6" />
+        }
+      >
         {/* 作者信息 */}
         <View style={styles.authorRow}>
           <Avatar nickname={post.user?.nickname || '?'} size={44} />
-          <View>
+          <View style={styles.authorInfo}>
             <Text style={styles.nickname}>{post.user?.nickname || '匿名用户'}</Text>
-            <Text style={styles.time}>{post.createdAt}</Text>
+            <Text style={styles.time}>{formatTime(post.createdAt)}</Text>
           </View>
+          {post.userId !== user?.id && (
+            <TouchableOpacity style={styles.chatButton} onPress={handleChat}>
+              <Icon name="message-text-outline" size={16} color="#3B82F6" />
+              <Text style={styles.chatButtonText}>私聊</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* 帖子内容 */}
@@ -155,9 +300,6 @@ export default function PostDetailScreen() {
           <TouchableOpacity style={styles.actionButton}>
             <Icon name="bookmark-outline" size={22} color="#9CA3AF" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionButton}>
-            <Icon name="share-outline" size={22} color="#9CA3AF" />
-          </TouchableOpacity>
         </View>
 
         {/* 分区标签 */}
@@ -168,10 +310,16 @@ export default function PostDetailScreen() {
         {/* 评论区 */}
         <View style={styles.commentSection}>
           <Text style={styles.commentTitle}>评论 ({post.commentCount})</Text>
-          {/* TODO: 加载评论列表 */}
-          <View style={styles.emptyComments}>
-            <Text style={styles.emptyText}>暂无评论，来说两句吧</Text>
-          </View>
+          {commentsLoading ? (
+            <ActivityIndicator style={styles.commentLoader} color="#3B82F6" />
+          ) : comments && comments.length > 0 ? (
+            comments.map(renderComment)
+          ) : (
+            <View style={styles.emptyComments}>
+              <Icon name="comment-outline" size={32} color="#CBD5E1" />
+              <Text style={styles.emptyText}>暂无评论，来说两句吧</Text>
+            </View>
+          )}
         </View>
       </ScrollView>
 
@@ -183,9 +331,19 @@ export default function PostDetailScreen() {
           placeholderTextColor="#6B7280"
           value={commentText}
           onChangeText={setCommentText}
+          maxLength={1000}
+          multiline
         />
-        <TouchableOpacity style={styles.sendButton}>
-          <Icon name="send" size={20} color="#FFFFFF" />
+        <TouchableOpacity
+          style={[styles.sendButton, (!commentText.trim() || sending) && styles.sendButtonDisabled]}
+          onPress={handleSendComment}
+          disabled={!commentText.trim() || sending}
+        >
+          {sending ? (
+            <ActivityIndicator color="#FFFFFF" size="small" />
+          ) : (
+            <Icon name="send" size={20} color="#FFFFFF" />
+          )}
         </TouchableOpacity>
       </View>
 
@@ -289,6 +447,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 12,
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
   },
@@ -305,19 +464,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 16,
+    gap: 12,
   },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
+  authorInfo: {
+    flex: 1,
+  },
+  chatButton: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 12,
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
   },
-  avatarText: {
-    color: '#1E293B',
-    fontSize: 18,
-    fontWeight: '600',
+  chatButtonText: {
+    color: '#3B82F6',
+    fontSize: 13,
+    fontWeight: '500',
   },
   nickname: {
     color: '#1E293B',
@@ -383,11 +549,49 @@ const styles = StyleSheet.create({
     color: '#1E293B',
     fontSize: 16,
     fontWeight: '600',
-    marginBottom: 16,
+    marginBottom: 12,
+  },
+  commentLoader: {
+    paddingVertical: 40,
+  },
+  commentItem: {
+    flexDirection: 'row',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    gap: 10,
+  },
+  commentBody: {
+    flex: 1,
+  },
+  commentHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  commentNickname: {
+    color: '#1E293B',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  commentTime: {
+    color: '#94A3B8',
+    fontSize: 11,
+  },
+  commentContent: {
+    color: '#334155',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  commentDelete: {
+    padding: 4,
+    alignSelf: 'flex-start',
   },
   emptyComments: {
     alignItems: 'center',
     paddingVertical: 40,
+    gap: 8,
   },
   emptyText: {
     color: '#94A3B8',
@@ -411,6 +615,7 @@ const styles = StyleSheet.create({
     color: '#1E293B',
     fontSize: 14,
     marginRight: 10,
+    maxHeight: 80,
   },
   sendButton: {
     width: 40,
@@ -419,6 +624,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#3B82F6',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  sendButtonDisabled: {
+    backgroundColor: '#CBD5E1',
   },
   errorText: {
     color: '#EF4444',
