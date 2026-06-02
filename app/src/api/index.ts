@@ -7,3 +7,4 @@ export { chatAPI } from './chat';
 export { moderationAPI } from './moderation';
 export { electionAPI } from './election';
 export { reportAPI } from './report';
+export { notificationAPI } from './notification';

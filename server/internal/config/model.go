@@ -190,6 +190,19 @@ type Report struct {
 	CreatedAt   time.Time  `json:"createdAt"`
 }
 
+// Notification 通知表
+type Notification struct {
+	ID         uint64    `gorm:"primaryKey" json:"id"`
+	UserID     uint64    `gorm:"index;not null" json:"userId"`
+	Type       int8      `gorm:"not null" json:"type"` // 1:系统 2:评论 3:点赞 4:删帖 5:举报处理
+	Title      string    `gorm:"size:100" json:"title"`
+	Content    string    `gorm:"type:text" json:"content"`
+	TargetType int8      `json:"targetType"` // 1:帖子 2:评论 3:用户
+	TargetID   uint64    `json:"targetId"`
+	IsRead     bool      `gorm:"default:false" json:"isRead"`
+	CreatedAt  time.Time `json:"createdAt"`
+}
+
 // ModerationLog 管理操作日志表
 type ModerationLog struct {
 	ID           uint64    `gorm:"primaryKey" json:"id"`

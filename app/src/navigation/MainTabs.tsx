@@ -1,13 +1,14 @@
 import React from 'react';
-import { View, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Text } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useQuery } from '@tanstack/react-query';
 import HomeScreen from '../screens/Home/HomeScreen';
 import CategoryScreen from '../screens/Category/CategoryScreen';
-import MessageScreen from '../screens/Message/MessageScreen';
 import ProfileScreen from '../screens/Profile/ProfileScreen';
+import { notificationAPI } from '../api';
 import { RootStackParamList } from './RootNavigator';
 
 export type MainTabParamList = {
@@ -31,7 +32,34 @@ function PublishButton() {
   );
 }
 
+// 消息图标（带红点）
+function MessageIcon({ color, size }: { color: string; size: number }) {
+  const { data } = useQuery({
+    queryKey: ['notifications-unread'],
+    queryFn: () => notificationAPI.getList(1, 0) as Promise<{ unreadCount: number }>,
+  });
+  const unreadCount = data?.unreadCount || 0;
+
+  return (
+    <View>
+      <Icon name="bell-outline" size={size} color={color} />
+      {unreadCount > 0 && (
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+// 空组件（消息页通过导航跳转）
+function EmptyComponent() {
+  return <View />;
+}
+
 export default function MainTabs() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+
   return (
     <Tab.Navigator
       screenOptions={{
@@ -68,10 +96,16 @@ export default function MainTabs() {
       />
       <Tab.Screen
         name="Message"
-        component={MessageScreen}
+        component={EmptyComponent}
         options={{
-          tabBarIcon: ({ color, size }) => <Icon name="message-text" size={size} color={color} />,
+          tabBarIcon: ({ color, size }) => <MessageIcon color={color} size={size} />,
           tabBarLabel: '消息',
+        }}
+        listeners={{
+          tabPress: (e) => {
+            e.preventDefault();
+            navigation.navigate('Notification');
+          },
         }}
       />
       <Tab.Screen
@@ -112,5 +146,22 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.4,
     shadowRadius: 8,
     elevation: 8,
+  },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -8,
+    backgroundColor: '#EF4444',
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
   },
 });

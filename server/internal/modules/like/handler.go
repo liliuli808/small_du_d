@@ -67,6 +67,22 @@ func (h *Handler) Like(c *gin.Context) {
 		return
 	}
 
+	// 点赞成功时通知帖子作者
+	if liked {
+		var post config.Post
+		if err := h.db.First(&post, postID).Error; err == nil && post.UserID != userID {
+			notification := config.Notification{
+				UserID:     post.UserID,
+				Type:       3, // 点赞通知
+				Title:      "收到新点赞",
+				Content:    "有人点赞了您的帖子",
+				TargetType: 1,
+				TargetID:   postID,
+			}
+			h.db.Create(&notification)
+		}
+	}
+
 	response.Success(c, gin.H{"liked": liked})
 }
 

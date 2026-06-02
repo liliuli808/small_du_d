@@ -67,6 +67,17 @@ func (h *Handler) DeletePost(c *gin.Context) {
 	post.DeleteReason = req.Reason
 	h.db.Save(&post)
 
+	// 通知作者
+	notification := config.Notification{
+		UserID:     post.UserID,
+		Type:       4, // 删帖通知
+		Title:      "帖子被删除",
+		Content:    "您的帖子因「" + req.Reason + "」被分区负责人删除",
+		TargetType: 1,
+		TargetID:   postID,
+	}
+	h.db.Create(&notification)
+
 	// 记录操作日志
 	log := config.ModerationLog{
 		OperatorID:   userID,

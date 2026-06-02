@@ -88,6 +88,19 @@ func (h *Handler) Create(c *gin.Context) {
 	// 更新帖子评论数
 	h.db.Model(&post).Update("comment_count", gorm.Expr("comment_count + 1"))
 
+	// 通知帖子作者（如果不是自己评论自己的帖子）
+	if post.UserID != userID {
+		notification := config.Notification{
+			UserID:     post.UserID,
+			Type:       2, // 评论通知
+			Title:      "收到新评论",
+			Content:    "有人评论了您的帖子",
+			TargetType: 1,
+			TargetID:   postID,
+		}
+		h.db.Create(&notification)
+	}
+
 	response.Success(c, comment)
 }
 

@@ -10,6 +10,7 @@ import CategoryDetailScreen from '../screens/Category/CategoryDetailScreen';
 import ModeratorPanelScreen from '../screens/Category/ModeratorPanelScreen';
 import ElectionScreen from '../screens/Category/ElectionScreen';
 import EditProfileScreen from '../screens/Profile/EditProfileScreen';
+import NotificationScreen from '../screens/Message/NotificationScreen';
 
 export type RootStackParamList = {
   Auth: undefined;
@@ -21,6 +22,7 @@ export type RootStackParamList = {
   ModeratorPanel: { categoryId: number; categoryName: string };
   Election: undefined;
   EditProfile: undefined;
+  Notification: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -61,6 +63,11 @@ export default function RootNavigator() {
           <Stack.Screen
             name="EditProfile"
             component={EditProfileScreen}
+            options={{ animation: 'slide_from_right' }}
+          />
+          <Stack.Screen
+            name="Notification"
+            component={NotificationScreen}
             options={{ animation: 'slide_from_right' }}
           />
           <Stack.Screen

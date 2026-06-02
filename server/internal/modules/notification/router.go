@@ -7,6 +7,12 @@ import (
 )
 
 func RegisterRoutes(r *gin.RouterGroup, db *gorm.DB, rdb *redis.Client) {
-	// TODO: 通知模块
-	// 包括系统通知、评论通知、点赞通知、删帖通知等
+	h := NewHandler(db, rdb)
+
+	notifications := r.Group("/notifications")
+	{
+		notifications.GET("", h.List)
+		notifications.POST("/:id/read", h.MarkRead)
+		notifications.POST("/read-all", h.MarkAllRead)
+	}
 }
