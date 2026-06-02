@@ -188,6 +188,36 @@ export default function PostDetailScreen() {
     setRefreshing(false);
   }, [postId, queryClient, refetchComments]);
 
+  // 举报评论
+  const handleReportComment = (comment: Comment) => {
+    Alert.alert(
+      '举报评论',
+      '请选择举报原因',
+      [
+        { text: '垃圾广告', onPress: () => submitReportComment(comment, 1) },
+        { text: '色情低俗', onPress: () => submitReportComment(comment, 2) },
+        { text: '人身攻击', onPress: () => submitReportComment(comment, 4) },
+        { text: '其他', onPress: () => submitReportComment(comment, 6) },
+        { text: '取消', style: 'cancel' },
+      ]
+    );
+  };
+
+  const submitReportComment = async (comment: Comment, reasonType: number) => {
+    try {
+      await reportAPI.create({
+        targetType: 2,
+        targetId: comment.id,
+        categoryId: post?.categoryId,
+        reasonType,
+        reasonText: '',
+      });
+      Alert.alert('成功', '举报已提交');
+    } catch (err: any) {
+      Alert.alert('失败', err?.message || '举报失败');
+    }
+  };
+
   // 渲染单条评论
   const renderComment = (comment: Comment) => {
     const isMine = user?.id === comment.userId;
@@ -205,14 +235,24 @@ export default function PostDetailScreen() {
           </View>
           <Text style={styles.commentContent}>{comment.content}</Text>
         </View>
-        {isMine && (
-          <TouchableOpacity
-            style={styles.commentDelete}
-            onPress={() => handleDeleteComment(comment)}
-          >
-            <Icon name="trash-can-outline" size={16} color="#94A3B8" />
-          </TouchableOpacity>
-        )}
+        <View style={styles.commentActions}>
+          {!isMine && (
+            <TouchableOpacity
+              style={styles.commentActionBtn}
+              onPress={() => handleReportComment(comment)}
+            >
+              <Icon name="flag-outline" size={14} color="#94A3B8" />
+            </TouchableOpacity>
+          )}
+          {isMine && (
+            <TouchableOpacity
+              style={styles.commentActionBtn}
+              onPress={() => handleDeleteComment(comment)}
+            >
+              <Icon name="trash-can-outline" size={14} color="#94A3B8" />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
     );
   };
@@ -585,9 +625,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
-  commentDelete: {
-    padding: 4,
+  commentActions: {
+    flexDirection: 'row',
+    gap: 8,
     alignSelf: 'flex-start',
+    paddingTop: 4,
+  },
+  commentActionBtn: {
+    padding: 4,
   },
   emptyComments: {
     alignItems: 'center',

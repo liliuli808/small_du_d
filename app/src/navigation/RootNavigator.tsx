@@ -9,6 +9,7 @@ import PublishScreen from '../screens/Publish/PublishScreen';
 import CategoryDetailScreen from '../screens/Category/CategoryDetailScreen';
 import ModeratorPanelScreen from '../screens/Category/ModeratorPanelScreen';
 import ElectionScreen from '../screens/Category/ElectionScreen';
+import EditProfileScreen from '../screens/Profile/EditProfileScreen';
 
 export type RootStackParamList = {
   Auth: undefined;
@@ -19,6 +20,7 @@ export type RootStackParamList = {
   CategoryDetail: { categoryId: number };
   ModeratorPanel: { categoryId: number; categoryName: string };
   Election: undefined;
+  EditProfile: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -54,6 +56,11 @@ export default function RootNavigator() {
           <Stack.Screen
             name="Election"
             component={ElectionScreen}
+            options={{ animation: 'slide_from_right' }}
+          />
+          <Stack.Screen
+            name="EditProfile"
+            component={EditProfileScreen}
             options={{ animation: 'slide_from_right' }}
           />
           <Stack.Screen

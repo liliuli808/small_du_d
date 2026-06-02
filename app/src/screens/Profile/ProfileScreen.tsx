@@ -49,7 +49,10 @@ export default function ProfileScreen() {
         <Text style={styles.nickname}>{user?.nickname || '匿名用户'}</Text>
         <Text style={styles.userId}>ID: {user?.id || '---'}</Text>
 
-        <TouchableOpacity style={styles.editButton}>
+        <TouchableOpacity
+          style={styles.editButton}
+          onPress={() => navigation.navigate('EditProfile')}
+        >
           <Text style={styles.editButtonText}>编辑资料</Text>
         </TouchableOpacity>
       </View>
