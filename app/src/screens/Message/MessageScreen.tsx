@@ -1,100 +1,121 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   View,
   Text,
   FlatList,
   TouchableOpacity,
   StyleSheet,
+  RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { RootStackParamList } from '../../navigation/RootNavigator';
+import { useQuery } from '@tanstack/react-query';
+import { chatAPI } from '../../api';
+import { useAuthStore } from '../../store/authStore';
 import Avatar from '../../components/Avatar';
+import { RootStackParamList } from '../../navigation/RootNavigator';
 
-const mockConversations = [
-  {
-    id: 1,
-    nickname: '深海潜水员',
-    lastMessage: '好的，下次再聊...',
-    time: '14:20',
-    unread: 2,
-    avatarColor: '#3B82F6',
-  },
-  {
-    id: 2,
-    nickname: '夜空中的星',
-    lastMessage: '那个帖子我看了，写得真好',
-    time: '昨天',
-    unread: 0,
-    avatarColor: '#14B8A6',
-  },
-  {
-    id: 3,
-    nickname: '漫步者',
-    lastMessage: '可以加个联系方式吗？',
-    time: '前天',
-    unread: 1,
-    avatarColor: '#F43F5E',
-  },
-];
+interface ConversationItem {
+  id: number;
+  userAId: number;
+  userBId: number;
+  status: number;
+  lastMessageId?: number;
+  lastMessageAt?: string;
+  createdAt: string;
+}
+
+function formatTime(timeStr?: string): string {
+  if (!timeStr) return '';
+  const date = new Date(timeStr);
+  const now = new Date();
+  const diff = now.getTime() - date.getTime();
+  const days = Math.floor(diff / 86400000);
+
+  if (days === 0) {
+    return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+  }
+  if (days === 1) return '昨天';
+  if (days < 7) return `${days}天前`;
+  return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
+}
 
 export default function MessageScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const user = useAuthStore((state) => state.user);
 
-  const renderItem = ({ item }: { item: typeof mockConversations[0] }) => (
-    <TouchableOpacity
-      style={styles.item}
-      onPress={() =>
-        navigation.navigate('ChatDetail', {
-          conversationId: item.id,
-          nickname: item.nickname,
-        })
-      }
-    >
-      <Avatar nickname={item.nickname} size={48} />
-      <View style={styles.content}>
-        <View style={styles.row}>
-          <Text style={styles.nickname}>{item.nickname}</Text>
-          <Text style={styles.time}>{item.time}</Text>
+  const { data: conversations, isLoading, refetch } = useQuery({
+    queryKey: ['conversations'],
+    queryFn: () => chatAPI.getConversations() as Promise<ConversationItem[]>,
+  });
+
+  const onRefresh = useCallback(async () => {
+    await refetch();
+  }, [refetch]);
+
+  const getOtherUserId = (conv: ConversationItem) => {
+    return conv.userAId === user?.id ? conv.userBId : conv.userAId;
+  };
+
+  const renderItem = ({ item }: { item: ConversationItem }) => {
+    const otherId = getOtherUserId(item);
+    const nickname = `用户${otherId}`;
+
+    return (
+      <TouchableOpacity
+        style={styles.item}
+        onPress={() =>
+          navigation.navigate('ChatDetail', {
+            conversationId: item.id,
+            nickname,
+            targetUserId: otherId,
+          })
+        }
+      >
+        <Avatar nickname={nickname} size={48} />
+        <View style={styles.content}>
+          <View style={styles.row}>
+            <Text style={styles.nickname}>{nickname}</Text>
+            <Text style={styles.time}>{formatTime(item.lastMessageAt)}</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.lastMessage} numberOfLines={1}>
+              {item.lastMessageId ? '...' : '暂无消息'}
+            </Text>
+          </View>
         </View>
-        <View style={styles.row}>
-          <Text style={styles.lastMessage} numberOfLines={1}>
-            {item.lastMessage}
-          </Text>
-          {item.unread > 0 && (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>
-                {item.unread > 99 ? '99+' : item.unread}
-              </Text>
-            </View>
-          )}
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>消息</Text>
-        <TouchableOpacity>
-          <Icon name="magnify" size={24} color="#1E293B" />
-        </TouchableOpacity>
       </View>
 
-      <FlatList
-        data={mockConversations}
-        renderItem={renderItem}
-        keyExtractor={(item) => item.id.toString()}
-        ItemSeparatorComponent={() => <View style={styles.separator} />}
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            <Icon name="message-text-outline" size={48} color="#E2E8F0" />
-            <Text style={styles.emptyText}>暂无消息</Text>
-          </View>
-        }
-      />
+      {isLoading ? (
+        <ActivityIndicator style={styles.loader} color="#3B82F6" />
+      ) : (
+        <FlatList
+          data={conversations || []}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.id.toString()}
+          refreshControl={
+            <RefreshControl refreshing={isLoading} onRefresh={onRefresh} tintColor="#3B82F6" />
+          }
+          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <Icon name="message-text-outline" size={48} color="#CBD5E1" />
+              <Text style={styles.emptyText}>暂无消息</Text>
+              <Text style={styles.emptyHint}>从帖子详情页点击"私聊"开始聊天</Text>
+            </View>
+          }
+        />
+      )}
     </View>
   );
 }
@@ -111,6 +132,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 12,
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
   },
@@ -119,11 +141,15 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1E293B',
   },
+  loader: {
+    marginTop: 40,
+  },
   item: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
   },
   content: {
     flex: 1,
@@ -150,23 +176,9 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 8,
   },
-  badge: {
-    backgroundColor: '#EF4444',
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 6,
-  },
-  badgeText: {
-    color: '#1E293B',
-    fontSize: 11,
-    fontWeight: '600',
-  },
   separator: {
     height: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F1F5F9',
     marginLeft: 76,
   },
   empty: {
@@ -177,5 +189,10 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
     fontSize: 14,
     marginTop: 12,
+  },
+  emptyHint: {
+    color: '#CBD5E1',
+    fontSize: 12,
+    marginTop: 4,
   },
 });

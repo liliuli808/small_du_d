@@ -14,7 +14,7 @@ export type RootStackParamList = {
   Auth: undefined;
   Main: undefined;
   PostDetail: { postId: number };
-  ChatDetail: { conversationId: number; nickname: string };
+  ChatDetail: { conversationId: number; nickname: string; targetUserId: number };
   Publish: undefined;
   CategoryDetail: { categoryId: number };
   ModeratorPanel: { categoryId: number; categoryName: string };

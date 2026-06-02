@@ -123,6 +123,7 @@ export default function PostDetailScreen() {
       navigation.navigate('ChatDetail', {
         conversationId: res.id,
         nickname: post.user?.nickname || '匿名用户',
+        targetUserId: post.userId,
       });
     } catch (err: any) {
       Alert.alert('失败', err?.message || '创建会话失败');

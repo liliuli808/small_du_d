@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,130 +8,224 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { RootStackParamList } from '../../navigation/RootNavigator';
+import { useQuery } from '@tanstack/react-query';
+import { MMKV } from 'react-native-mmkv';
+import { chatAPI } from '../../api';
+import { useAuthStore } from '../../store/authStore';
 import Avatar from '../../components/Avatar';
+import { RootStackParamList } from '../../navigation/RootNavigator';
 
 type ChatDetailRouteProp = RouteProp<RootStackParamList, 'ChatDetail'>;
 
-interface Message {
+interface MessageItem {
   id: number;
+  conversationId: number;
   senderId: number;
+  receiverId: number;
   content: string;
+  messageType: number;
+  status: number;
   createdAt: string;
-  isSelf: boolean;
 }
 
-const mockMessages: Message[] = [
-  {
-    id: 1,
-    senderId: 2,
-    content: '你好，看到你的帖子，感觉我们兴趣挺像的',
-    createdAt: '10:05',
-    isSelf: false,
-  },
-  {
-    id: 2,
-    senderId: 1,
-    content: '是的，我也觉得。你平时经常逛这个分区吗？',
-    createdAt: '10:07',
-    isSelf: true,
-  },
-  {
-    id: 3,
-    senderId: 2,
-    content: '差不多每天都会来看看，有时候也发发帖',
-    createdAt: '10:08',
-    isSelf: false,
-  },
-  {
-    id: 4,
-    senderId: 1,
-    content: '我也是！以后可以多交流交流',
-    createdAt: '10:10',
-    isSelf: true,
-  },
-];
+const storage = new MMKV();
+
+function formatTime(timeStr: string): string {
+  const date = new Date(timeStr);
+  return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+}
 
 export default function ChatDetailScreen() {
   const navigation = useNavigation();
   const route = useRoute<ChatDetailRouteProp>();
-  const { nickname } = route.params;
-  const [messages, setMessages] = useState<Message[]>(mockMessages);
-  const [inputText, setInputText] = useState('');
-  const flatListRef = useRef<FlatList>(null);
+  const { conversationId, nickname, targetUserId } = route.params;
+  const user = useAuthStore((state) => state.user);
 
+  const [messages, setMessages] = useState<MessageItem[]>([]);
+  const [inputText, setInputText] = useState('');
+  const [wsConnected, setWsConnected] = useState(false);
+  const flatListRef = useRef<FlatList>(null);
+  const wsRef = useRef<WebSocket | null>(null);
+
+  // 加载历史消息
+  const { isLoading } = useQuery({
+    queryKey: ['messages', conversationId],
+    queryFn: async () => {
+      const res = await chatAPI.getMessages(conversationId, undefined, 100);
+      const msgs = (res.items || res || []) as MessageItem[];
+      // 按时间正序排列
+      const sorted = msgs.sort(
+        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      );
+      setMessages(sorted);
+      return sorted;
+    },
+  });
+
+  // 建立 WebSocket 连接
+  useEffect(() => {
+    const token = storage.getString('accessToken');
+    if (!token) return;
+
+    const ws = new WebSocket(`ws://localhost:8080/ws?token=${token}`);
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      console.log('WebSocket connected');
+      setWsConnected(true);
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        if (msg.conversationId === conversationId) {
+          setMessages((prev) => {
+            const exists = prev.some((m) => m.id === msg.id);
+            if (exists) return prev;
+            return [...prev, msg];
+          });
+        }
+      } catch {
+        // ignore
+      }
+    };
+
+    ws.onerror = (error) => {
+      console.error('WebSocket error:', error);
+      setWsConnected(false);
+    };
+
+    ws.onclose = () => {
+      console.log('WebSocket closed');
+      setWsConnected(false);
+    };
+
+    return () => {
+      ws.close();
+    };
+  }, [conversationId]);
+
+  // 自动滚动到底部
+  useEffect(() => {
+    if (messages.length > 0) {
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    }
+  }, [messages.length]);
+
+  // 设置导航标题
   useEffect(() => {
     navigation.setOptions({
       title: nickname,
+      headerRight: () => (
+        <View style={styles.headerStatus}>
+          <View style={[styles.statusDot, wsConnected ? styles.statusOnline : styles.statusOffline]} />
+        </View>
+      ),
     });
-  }, [navigation, nickname]);
+  }, [navigation, nickname, wsConnected]);
 
-  const sendMessage = () => {
-    if (!inputText.trim()) return;
+  const sendMessage = useCallback(() => {
+    const content = inputText.trim();
+    if (!content || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+      return;
+    }
 
-    const newMsg: Message = {
-      id: Date.now(),
-      senderId: 1,
-      content: inputText.trim(),
-      createdAt: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
-      isSelf: true,
+    const payload = {
+      type: 'chat.send',
+      payload: JSON.stringify({
+        conversationId,
+        content,
+      }),
     };
 
-    setMessages((prev) => [...prev, newMsg]);
+    wsRef.current.send(JSON.stringify(payload));
+
+    // 本地先添加一条 optimistic message
+    const optimisticMsg: MessageItem = {
+      id: Date.now(),
+      conversationId,
+      senderId: user?.id || 0,
+      receiverId: targetUserId,
+      content,
+      messageType: 1,
+      status: 0,
+      createdAt: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, optimisticMsg]);
     setInputText('');
+  }, [inputText, conversationId, targetUserId, user?.id]);
 
-    setTimeout(() => {
-      flatListRef.current?.scrollToEnd({ animated: true });
-    }, 100);
-  };
+  const isSelf = (msg: MessageItem) => msg.senderId === user?.id;
 
-  const renderMessage = ({ item }: { item: Message }) => (
-    <View
-      style={[
-        styles.messageRow,
-        item.isSelf ? styles.messageRowSelf : styles.messageRowOther,
-      ]}
-    >
+  const renderMessage = ({ item }: { item: MessageItem }) => {
+    const self = isSelf(item);
+    return (
       <View
         style={[
-          styles.messageBubble,
-          item.isSelf ? styles.bubbleSelf : styles.bubbleOther,
+          styles.messageRow,
+          self ? styles.messageRowSelf : styles.messageRowOther,
         ]}
       >
-        <Text
-          style={[
-            styles.messageText,
-            item.isSelf ? styles.messageTextSelf : styles.messageTextOther,
-          ]}
-        >
-          {item.content}
-        </Text>
+        {!self && <Avatar nickname={nickname} size={28} />}
+        <View style={[styles.messageWrapper, self && styles.messageWrapperSelf]}>
+          <View
+            style={[
+              styles.messageBubble,
+              self ? styles.bubbleSelf : styles.bubbleOther,
+            ]}
+          >
+            <Text
+              style={[
+                styles.messageText,
+                self ? styles.messageTextSelf : styles.messageTextOther,
+              ]}
+            >
+              {item.content}
+            </Text>
+          </View>
+          <Text style={[styles.messageTime, self && styles.messageTimeSelf]}>
+            {formatTime(item.createdAt)}
+          </Text>
+        </View>
       </View>
-      <Text style={styles.messageTime}>{item.createdAt}</Text>
-    </View>
-  );
+    );
+  };
 
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        renderItem={renderMessage}
-        keyExtractor={(item) => item.id.toString()}
-        contentContainerStyle={styles.messagesList}
-        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
-      />
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator color="#3B82F6" />
+        </View>
+      ) : (
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          renderItem={renderMessage}
+          keyExtractor={(item) => item.id.toString()}
+          contentContainerStyle={styles.messagesList}
+          onContentSizeChange={() =>
+            flatListRef.current?.scrollToEnd({ animated: false })
+          }
+        />
+      )}
+
+      {!wsConnected && !isLoading && (
+        <View style={styles.offlineBar}>
+          <Text style={styles.offlineText}>连接中...</Text>
+        </View>
+      )}
 
       <View style={styles.inputBar}>
-        <TouchableOpacity style={styles.plusButton}>
-          <Icon name="plus-circle-outline" size={26} color="#9CA3AF" />
-        </TouchableOpacity>
         <TextInput
           style={styles.input}
           placeholder="输入消息..."
@@ -142,9 +236,9 @@ export default function ChatDetailScreen() {
           maxLength={500}
         />
         <TouchableOpacity
-          style={[styles.sendButton, !inputText.trim() && styles.sendButtonDisabled]}
+          style={[styles.sendButton, (!inputText.trim() || !wsConnected) && styles.sendButtonDisabled]}
           onPress={sendMessage}
-          disabled={!inputText.trim()}
+          disabled={!inputText.trim() || !wsConnected}
         >
           <Icon name="send" size={20} color="#FFFFFF" />
         </TouchableOpacity>
@@ -158,19 +252,50 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F1F5F9',
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerStatus: {
+    marginRight: 8,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  statusOnline: {
+    backgroundColor: '#10B981',
+  },
+  statusOffline: {
+    backgroundColor: '#CBD5E1',
+  },
   messagesList: {
     padding: 16,
     paddingBottom: 8,
   },
   messageRow: {
+    flexDirection: 'row',
     marginBottom: 12,
-    maxWidth: '80%',
+    maxWidth: '85%',
+    alignItems: 'flex-end',
   },
   messageRowOther: {
     alignSelf: 'flex-start',
   },
   messageRowSelf: {
     alignSelf: 'flex-end',
+    flexDirection: 'row-reverse',
+  },
+  messageWrapper: {
+    marginLeft: 8,
+    maxWidth: '85%',
+  },
+  messageWrapperSelf: {
+    marginLeft: 0,
+    marginRight: 0,
+    alignItems: 'flex-end',
   },
   messageBubble: {
     borderRadius: 16,
@@ -178,7 +303,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   bubbleOther: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#FFFFFF',
     borderBottomLeftRadius: 4,
   },
   bubbleSelf: {
@@ -193,13 +318,24 @@ const styles = StyleSheet.create({
     color: '#1E293B',
   },
   messageTextSelf: {
-    color: '#1E293B',
+    color: '#FFFFFF',
   },
   messageTime: {
     color: '#94A3B8',
     fontSize: 11,
     marginTop: 4,
+  },
+  messageTimeSelf: {
     alignSelf: 'flex-end',
+  },
+  offlineBar: {
+    backgroundColor: '#FEF3C7',
+    paddingVertical: 6,
+    alignItems: 'center',
+  },
+  offlineText: {
+    color: '#92400E',
+    fontSize: 12,
   },
   inputBar: {
     flexDirection: 'row',
@@ -208,15 +344,11 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderTopWidth: 1,
     borderTopColor: '#E2E8F0',
-    backgroundColor: '#F1F5F9',
-  },
-  plusButton: {
-    padding: 4,
-    marginRight: 8,
+    backgroundColor: '#FFFFFF',
   },
   input: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F1F5F9',
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 10,
@@ -234,6 +366,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   sendButtonDisabled: {
-    opacity: 0.5,
+    backgroundColor: '#CBD5E1',
   },
 });
