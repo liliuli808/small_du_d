@@ -24,13 +24,18 @@ interface SelectedImage {
   height: number;
   type?: string;
   fileName?: string;
+  originalSize?: number;
+  compressQuality?: number;
 }
 
 interface UploadedImage {
   url: string;
+  thumbUrl: string;
   objectKey: string;
   width: number;
   height: number;
+  thumbWidth?: number;
+  thumbHeight?: number;
 }
 
 export default function PublishScreen() {
@@ -43,6 +48,50 @@ export default function PublishScreen() {
   const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+
+  // 根据原图大小计算合适的压缩参数
+  const getCompressOptions = (asset: Asset) => {
+    const width = asset.width || 0;
+    const height = asset.height || 0;
+    const fileSize = asset.fileSize || 0;
+    const maxPixels = width * height;
+
+    // 智能压缩策略
+    let quality = 0.9;
+    let maxW = 1920;
+    let maxH = 1920;
+
+    if (fileSize > 5 * 1024 * 1024) {
+      // 大于 5MB：强压缩
+      quality = 0.6;
+      maxW = 1280;
+      maxH = 1280;
+    } else if (fileSize > 2 * 1024 * 1024) {
+      // 2-5MB：中等压缩
+      quality = 0.7;
+      maxW = 1440;
+      maxH = 1440;
+    } else if (fileSize > 500 * 1024) {
+      // 500KB-2MB：轻度压缩
+      quality = 0.8;
+      maxW = 1600;
+      maxH = 1600;
+    } else {
+      // 小于 500KB：最小压缩
+      quality = 0.9;
+      maxW = 1920;
+      maxH = 1920;
+    }
+
+    // 超高分辨率图片额外限制
+    if (maxPixels > 4000 * 3000) {
+      maxW = 1280;
+      maxH = 1280;
+      quality = Math.min(quality, 0.7);
+    }
+
+    return { quality, maxWidth: maxW, maxHeight: maxH };
+  };
 
   // 选择图片
   const handleSelectImages = () => {
@@ -57,9 +106,9 @@ export default function PublishScreen() {
         mediaType: 'photo',
         selectionLimit: remainingSlots,
         includeBase64: false,
-        quality: 0.8,
-        maxWidth: 1280,
-        maxHeight: 1280,
+        quality: 0.85,
+        maxWidth: 1920,
+        maxHeight: 1920,
       },
       (response: ImagePickerResponse) => {
         if (response.didCancel) return;
@@ -68,13 +117,19 @@ export default function PublishScreen() {
           return;
         }
 
-        const newImages: SelectedImage[] = (response.assets || []).map((asset: Asset) => ({
-          uri: asset.uri || '',
-          width: asset.width || 0,
-          height: asset.height || 0,
-          type: asset.type,
-          fileName: asset.fileName,
-        })).filter(img => img.uri);
+        const newImages: SelectedImage[] = (response.assets || []).map((asset: Asset) => {
+          const opts = getCompressOptions(asset);
+          return {
+            uri: asset.uri || '',
+            width: asset.width || 0,
+            height: asset.height || 0,
+            type: asset.type,
+            fileName: asset.fileName,
+            // 记录压缩参数，用于显示
+            originalSize: asset.fileSize || 0,
+            compressQuality: opts.quality,
+          };
+        }).filter(img => img.uri);
 
         setImages((prev) => [...prev, ...newImages]);
       }
@@ -105,9 +160,12 @@ export default function PublishScreen() {
       });
       return {
         url: res.url,
+        thumbUrl: res.thumbUrl || res.url,
         objectKey: res.objectKey,
-        width: image.width,
-        height: image.height,
+        width: res.width || image.width,
+        height: res.height || image.height,
+        thumbWidth: res.thumbWidth,
+        thumbHeight: res.thumbHeight,
       };
     } catch (err: any) {
       console.error('Upload error:', err);
@@ -155,7 +213,8 @@ export default function PublishScreen() {
         content: content.trim(),
         images: finalImages.map((img) => ({
           objectKey: img.objectKey,
-          url: img.url,
+          imageUrl: img.url,
+          thumbUrl: img.thumbUrl,
           width: img.width,
           height: img.height,
         })),
@@ -230,6 +289,14 @@ export default function PublishScreen() {
                     <ActivityIndicator color="#FFFFFF" />
                   </View>
                 )}
+                {/* 压缩信息标签 */}
+                <View style={styles.compressBadge}>
+                  <Text style={styles.compressBadgeText}>
+                    {img.originalSize && img.originalSize > 0
+                      ? `${(img.originalSize / 1024 / 1024).toFixed(1)}MB → ${Math.round((img.compressQuality || 0.85) * 100)}%`
+                      : `${Math.round((img.compressQuality || 0.85) * 100)}%`}
+                  </Text>
+                </View>
               </View>
             ))}
           </View>
@@ -362,6 +429,20 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.4)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  compressBadge: {
+    position: 'absolute',
+    bottom: 4,
+    left: 4,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  compressBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '500',
   },
   addImageButton: {
     width: 100,

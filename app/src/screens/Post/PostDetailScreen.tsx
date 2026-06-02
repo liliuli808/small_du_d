@@ -352,13 +352,13 @@ export default function PostDetailScreen() {
           </View>
         )}
 
-        {/* 图片 */}
+        {/* 图片 - 优先加载缩略图 */}
         {post.images && post.images.length > 0 && (
           <View style={styles.imageContainer}>
             {post.images.map((img: any) => (
               <FastImage
                 key={img.id}
-                source={{ uri: img.imageUrl }}
+                source={{ uri: img.thumbUrl || img.imageUrl }}
                 style={styles.image}
                 resizeMode="cover"
               />

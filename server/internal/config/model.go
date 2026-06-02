@@ -65,6 +65,7 @@ type PostImage struct {
 	ID         uint64 `gorm:"primaryKey" json:"id"`
 	PostID     uint64 `gorm:"index;not null" json:"postId"`
 	ImageURL   string `gorm:"size:500" json:"imageUrl"`
+	ThumbURL   string `gorm:"size:500" json:"thumbUrl"`
 	ObjectKey  string `gorm:"size:500" json:"objectKey"`
 	Width      int    `json:"width"`
 	Height     int    `json:"height"`

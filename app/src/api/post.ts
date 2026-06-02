@@ -22,6 +22,7 @@ export interface Post {
   images?: Array<{
     id: number;
     imageUrl: string;
+    thumbUrl?: string;
     width: number;
     height: number;
   }>;
@@ -32,7 +33,8 @@ export interface CreatePostParams {
   content: string;
   images?: Array<{
     objectKey: string;
-    url: string;
+    imageUrl: string;
+    thumbUrl?: string;
     width: number;
     height: number;
   }>;

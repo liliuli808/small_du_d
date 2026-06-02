@@ -79,13 +79,13 @@ const PostCard = memo(function PostCard({ post }: PostCardProps) {
         {post.content}
       </Text>
 
-      {/* 图片 */}
+      {/* 图片 - 优先加载缩略图 */}
       {post.images && post.images.length > 0 && (
         <View style={styles.imageGrid}>
           {post.images.slice(0, 3).map((img) => (
             <FastImage
               key={img.id}
-              source={{ uri: img.imageUrl }}
+              source={{ uri: img.thumbUrl || img.imageUrl }}
               style={[
                 styles.image,
                 post.images!.length === 1 && styles.imageSingle,
