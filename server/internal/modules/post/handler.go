@@ -3,8 +3,8 @@ package post
 import (
 	"anonymous-community/internal/config"
 	"anonymous-community/internal/pkg/response"
-	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
@@ -82,6 +82,21 @@ func (h *Handler) Create(c *gin.Context) {
 		return
 	}
 
+	// 检查用户状态
+	var user config.User
+	if err := h.db.First(&user, userID).Error; err != nil {
+		response.Error(c, 20007, "用户不存在")
+		return
+	}
+	if user.Status == 1 {
+		response.Error(c, 20008, "账号已被禁言，无法发帖")
+		return
+	}
+	if user.Status == 2 {
+		response.Error(c, 20009, "账号已被封禁")
+		return
+	}
+
 	// 检查分区是否存在
 	var category config.Category
 	if err := h.db.First(&category, req.CategoryID).Error; err != nil {
@@ -156,8 +171,8 @@ func (h *Handler) Delete(c *gin.Context) {
 
 	post.Status = 1
 	post.DeletedBy = &userID
-	now := config.Post{}.DeletedAt // workaround for time
-	_ = now
+	now := time.Now()
+	post.DeletedAt = &now
 	h.db.Save(&post)
 
 	response.Success(c, nil)

@@ -65,6 +65,21 @@ func (h *Handler) Create(c *gin.Context) {
 		return
 	}
 
+	// 检查用户状态
+	var user config.User
+	if err := h.db.First(&user, userID).Error; err != nil {
+		response.Error(c, 20007, "用户不存在")
+		return
+	}
+	if user.Status == 1 {
+		response.Error(c, 20008, "账号已被禁言，无法评论")
+		return
+	}
+	if user.Status == 2 {
+		response.Error(c, 20009, "账号已被封禁")
+		return
+	}
+
 	// 检查帖子是否存在
 	var post config.Post
 	if err := h.db.First(&post, postID).Error; err != nil {

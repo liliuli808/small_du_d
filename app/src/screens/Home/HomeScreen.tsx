@@ -65,8 +65,8 @@ export default function HomeScreen() {
       {/* 顶部导航 */}
       <View style={styles.header}>
         <Text style={styles.logo}>匿名社区</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('Message')}>
-          <Icon name="bell-outline" size={24} color="#FFFFFF" />
+        <TouchableOpacity onPress={() => navigation.navigate('Notification')}>
+          <Icon name="bell-outline" size={24} color="#1E293B" />
         </TouchableOpacity>
       </View>
 

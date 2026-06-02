@@ -67,7 +67,7 @@ export default function RegisterScreen() {
         {/* 顶部导航 */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Icon name="arrow-left" size={24} color="#FFFFFF" />
+            <Icon name="arrow-left" size={24} color="#1E293B" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>创建账号</Text>
           <View style={{ width: 24 }} />
@@ -228,7 +228,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   registerButtonText: {
-    color: '#1E293B',
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },

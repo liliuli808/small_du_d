@@ -11,6 +11,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useAuthStore } from '../../store/authStore';
 import { useAppStore } from '../../store/appStore';
+import Avatar from '../../components/Avatar';
 import { RootStackParamList } from '../../navigation/RootNavigator';
 
 const menuItems = [
