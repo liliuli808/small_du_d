@@ -1,10 +1,8 @@
 import { useState, useEffect } from 'react'
 import {
-  Card, Table, Button, Space, Tag, Modal, Form, Input, DatePicker, message, Popconfirm,
+  Table, Button, Space, Tag, Modal, Form, Input, DatePicker, message, Popconfirm,
 } from 'antd'
-import dayjs from 'dayjs'
 import { electionAPI, Election } from '../api/election'
-import { categoryAPI } from '../api/category'
 
 const statusMap: Record<number, { text: string; color: string }> = {
   0: { text: '草稿', color: 'default' },
@@ -17,7 +15,6 @@ const statusMap: Record<number, { text: string; color: string }> = {
 
 export default function Elections() {
   const [elections, setElections] = useState<Election[]>([])
-  const [categories, setCategories] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [modalVisible, setModalVisible] = useState(false)
   const [form] = Form.useForm()
@@ -34,18 +31,8 @@ export default function Elections() {
     }
   }
 
-  const fetchCategories = async () => {
-    try {
-      const res = await categoryAPI.getList()
-      setCategories(res || [])
-    } catch {
-      // ignore
-    }
-  }
-
   useEffect(() => {
     fetchElections()
-    fetchCategories()
   }, [])
 
   const handleCreate = async () => {

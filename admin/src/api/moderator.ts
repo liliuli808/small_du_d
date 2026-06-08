@@ -1,4 +1,4 @@
-import request from './request'
+import { api } from './request'
 
 export interface Moderator {
   id: number
@@ -19,11 +19,11 @@ export interface Moderator {
 
 export const moderatorAPI = {
   getList: (params?: { categoryId?: number }) =>
-    request.get('/admin/moderators', { params }),
+    api.get<Moderator[]>('/admin/moderators', { params }),
 
   create: (data: { categoryId: number; userId: number; role: number }) =>
-    request.post('/admin/moderators', data),
+    api.post<Moderator>('/admin/moderators', data),
 
   delete: (id: number) =>
-    request.delete(`/admin/moderators/${id}`),
+    api.delete(`/admin/moderators/${id}`),
 }

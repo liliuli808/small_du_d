@@ -3,7 +3,6 @@ package category
 import (
 	"anonymous-community/internal/config"
 	"anonymous-community/internal/pkg/response"
-	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"

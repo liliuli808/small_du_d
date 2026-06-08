@@ -1,4 +1,4 @@
-import request from './request';
+import { api, PaginatedResponse } from './request';
 
 export interface Conversation {
   id: number;
@@ -23,13 +23,13 @@ export interface Message {
 
 export const chatAPI = {
   getConversations: () =>
-    request.get('/conversations'),
+    api.get<Conversation[]>('/conversations'),
 
   createConversation: (targetUserId: number) =>
-    request.post('/conversations', { targetUserId }),
+    api.post<Conversation>('/conversations', { targetUserId }),
 
   getMessages: (conversationId: number, cursor?: string, limit?: number) =>
-    request.get(`/conversations/${conversationId}/messages`, {
+    api.get<PaginatedResponse<Message>>(`/conversations/${conversationId}/messages`, {
       params: { cursor, limit },
     }),
 };

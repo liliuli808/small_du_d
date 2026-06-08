@@ -1,4 +1,4 @@
-import request from './request';
+import { api } from './request';
 
 export interface CreateReportParams {
   targetType: number;
@@ -9,13 +9,23 @@ export interface CreateReportParams {
 }
 
 export const reportAPI = {
-  // 创建举报
   create: (params: CreateReportParams) =>
-    request.post('/reports', params),
+    api.post('/reports', params),
 
-  // 获取我的举报记录
   getMyReports: (limit?: number, offset?: number) =>
-    request.get('/reports/my', {
+    api.get<Report[]>('/reports/my', {
       params: { limit, offset },
     }),
 };
+
+export interface Report {
+  id: number;
+  reporterId: number;
+  targetType: number;
+  targetId: number;
+  categoryId?: number;
+  reasonType: number;
+  reasonText: string;
+  status: number;
+  createdAt: string;
+}

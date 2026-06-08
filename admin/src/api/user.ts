@@ -1,4 +1,4 @@
-import request from './request'
+import { api, PaginatedResponse } from './request'
 
 export interface User {
   id: number
@@ -13,8 +13,8 @@ export interface User {
 
 export const userAPI = {
   getList: (params?: { status?: number; keyword?: string; limit?: number; offset?: number }) =>
-    request.get('/admin/users', { params }),
+    api.get<PaginatedResponse<User>>('/admin/users', { params }),
 
   updateStatus: (id: number, status: number) =>
-    request.patch(`/admin/users/${id}/status`, { status }),
+    api.patch(`/admin/users/${id}/status`, { status }),
 }

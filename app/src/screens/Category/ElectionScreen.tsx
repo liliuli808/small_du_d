@@ -14,38 +14,14 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import Avatar from '../../components/Avatar';
 import { electionAPI } from '../../api';
+import { Election, ElectionCandidate } from '../../api/election';
 import { RootStackParamList } from '../../navigation/RootNavigator';
-
-interface Election {
-  id: number;
-  categoryId: number;
-  title: string;
-  status: number;
-  signupStartAt?: string;
-  signupEndAt?: string;
-  voteStartAt?: string;
-  voteEndAt?: string;
-  createdAt: string;
-}
-
-interface Candidate {
-  id: number;
-  userId: number;
-  manifesto: string;
-  voteCount: number;
-  user?: {
-    id: number;
-    nickname: string;
-    avatarUrl: string;
-  };
-}
 
 export default function ElectionScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const queryClient = useQueryClient();
   const [selectedElection, setSelectedElection] = useState<Election | null>(null);
   const [showDetail, setShowDetail] = useState(false);
   const [showSignupModal, setShowSignupModal] = useState(false);
@@ -53,22 +29,22 @@ export default function ElectionScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   // 获取选举列表
-  const { data: elections, isLoading, refetch } = useQuery({
+  const { data: elections, refetch } = useQuery({
     queryKey: ['elections'],
-    queryFn: () => electionAPI.getList() as Promise<Election[]>,
+    queryFn: () => electionAPI.getList(),
   });
 
   // 获取选举详情
   const { data: electionDetail } = useQuery({
     queryKey: ['electionDetail', selectedElection?.id],
-    queryFn: () => electionAPI.getDetail(selectedElection!.id) as Promise<Election>,
+    queryFn: () => electionAPI.getDetail(selectedElection!.id),
     enabled: !!selectedElection && showDetail,
   });
 
   // 获取候选人
   const { data: candidates, refetch: refetchCandidates } = useQuery({
     queryKey: ['candidates', selectedElection?.id],
-    queryFn: () => electionAPI.getCandidates(selectedElection!.id) as Promise<Candidate[]>,
+    queryFn: () => electionAPI.getCandidates(selectedElection!.id),
     enabled: !!selectedElection && showDetail,
   });
 
@@ -126,7 +102,7 @@ export default function ElectionScreen() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3B82F6" />}
     >
       {elections && elections.length > 0 ? (
-        elections.map((election) => {
+        elections.map((election: Election) => {
           const status = getStatusLabel(election.status);
           return (
             <TouchableOpacity
@@ -228,7 +204,7 @@ export default function ElectionScreen() {
               候选人 ({candidates?.length || 0})
             </Text>
             {candidates && candidates.length > 0 ? (
-              candidates.map((candidate, idx) => (
+              candidates.map((candidate: ElectionCandidate, idx: number) => (
                 <View key={candidate.id} style={styles.candidateCard}>
                   <View style={styles.candidateRank}>
                     {idx < 3 ? (

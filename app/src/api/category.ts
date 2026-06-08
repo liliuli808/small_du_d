@@ -1,4 +1,5 @@
-import request from './request';
+import { api, PaginatedResponse } from './request';
+import { Post } from './post';
 
 export interface Category {
   id: number;
@@ -15,16 +16,27 @@ export interface Category {
 
 export const categoryAPI = {
   getList: () =>
-    request.get('/categories'),
+    api.get<Category[]>('/categories'),
 
   getDetail: (id: number) =>
-    request.get(`/categories/${id}`),
+    api.get<Category>(`/categories/${id}`),
 
   getPosts: (id: number, cursor?: string, limit?: number) =>
-    request.get(`/categories/${id}/posts`, {
+    api.get<PaginatedResponse<Post>>(`/categories/${id}/posts`, {
       params: { cursor, limit },
     }),
 
   getModerators: (id: number) =>
-    request.get(`/categories/${id}/moderators`),
+    api.get<Moderator[]>(`/categories/${id}/moderators`),
 };
+
+export interface Moderator {
+  id: number;
+  userId: number;
+  role: number;
+  user?: {
+    id: number;
+    nickname: string;
+    avatarUrl: string;
+  };
+}

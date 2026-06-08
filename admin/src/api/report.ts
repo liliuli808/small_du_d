@@ -1,4 +1,4 @@
-import request from './request'
+import { api } from './request'
 
 export interface Report {
   id: number
@@ -14,5 +14,5 @@ export interface Report {
 
 export const reportAPI = {
   getList: (categoryId: number, params?: { status?: number; limit?: number; offset?: number }) =>
-    request.get(`/moderation/categories/${categoryId}/reports`, { params }),
+    api.get<Report[]>(`/moderation/categories/${categoryId}/reports`, { params }),
 }

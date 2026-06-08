@@ -1,4 +1,4 @@
-import request from './request'
+import { api } from './request'
 
 export interface Notification {
   id: number
@@ -14,13 +14,13 @@ export interface Notification {
 
 export const notificationAPI = {
   getList: (limit?: number, offset?: number) =>
-    request.get('/notifications', {
+    api.get<{ items: Notification[]; unreadCount: number }>('/notifications', {
       params: { limit, offset },
     }),
 
   markRead: (id: number) =>
-    request.post(`/notifications/${id}/read`),
+    api.post(`/notifications/${id}/read`),
 
   markAllRead: () =>
-    request.post('/notifications/read-all'),
+    api.post('/notifications/read-all'),
 }

@@ -1,4 +1,4 @@
-import request from './request'
+import { api, PaginatedResponse } from './request'
 
 export interface Appeal {
   id: number
@@ -20,8 +20,8 @@ export interface Appeal {
 
 export const appealAPI = {
   getList: (params?: { status?: number; limit?: number; offset?: number }) =>
-    request.get('/admin/appeals', { params }),
+    api.get<PaginatedResponse<Appeal>>('/admin/appeals', { params }),
 
   handle: (id: number, data: { status: number; handleResult: string }) =>
-    request.post(`/admin/appeals/${id}/handle`, data),
+    api.post(`/admin/appeals/${id}/handle`, data),
 }

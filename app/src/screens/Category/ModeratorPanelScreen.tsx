@@ -16,20 +16,10 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { moderationAPI } from '../../api';
+import { Report } from '../../api/moderation';
 import { RootStackParamList } from '../../navigation/RootNavigator';
 
 type ModeratorPanelRouteProp = RouteProp<RootStackParamList, 'ModeratorPanel'>;
-
-interface ReportItem {
-  id: number;
-  reporterId: number;
-  targetType: number;
-  targetId: number;
-  reasonType: number;
-  reasonText: string;
-  status: number;
-  createdAt: string;
-}
 
 export default function ModeratorPanelScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -41,17 +31,15 @@ export default function ModeratorPanelScreen() {
   const [announcementText, setAnnouncementText] = useState('');
   const [rulesText, setRulesText] = useState('');
   const [showReportModal, setShowReportModal] = useState(false);
-  const [selectedReport, setSelectedReport] = useState<ReportItem | null>(null);
+  const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [handleRemark, setHandleRemark] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 
   // 获取举报列表
-  const { data: reports, isLoading, refetch } = useQuery({
+  const { data: reports, refetch } = useQuery({
     queryKey: ['reports', categoryId],
-    queryFn: async () => {
-      const res = await moderationAPI.getReports(categoryId, 0, 50, 0);
-      return (res.items || res || []) as ReportItem[];
-    },
+    queryFn: () => moderationAPI.getReports(categoryId, 0, 50, 0),
+    select: (res) => res.items || [],
   });
 
   // 更新公告
@@ -100,7 +88,7 @@ export default function ModeratorPanelScreen() {
     setRefreshing(false);
   }, [refetch]);
 
-  const openReportModal = (report: ReportItem) => {
+  const openReportModal = (report: Report) => {
     setSelectedReport(report);
     setShowReportModal(true);
   };
@@ -110,7 +98,7 @@ export default function ModeratorPanelScreen() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3B82F6" />}
     >
       {reports && reports.length > 0 ? (
-        reports.map((report) => (
+        reports.map((report: Report) => (
           <View key={report.id} style={styles.reportCard}>
             <View style={styles.reportHeader}>
               <View style={styles.reportTypeBadge}>

@@ -1,4 +1,4 @@
-import request from './request'
+import { api, PaginatedResponse } from './request'
 
 export interface Post {
   id: number
@@ -21,8 +21,8 @@ export interface Post {
 
 export const postAPI = {
   getList: (params?: { status?: number; categoryId?: number; keyword?: string; limit?: number; offset?: number }) =>
-    request.get('/admin/posts', { params }),
+    api.get<PaginatedResponse<Post>>('/admin/posts', { params }),
 
   delete: (id: number, reason: string) =>
-    request.post(`/admin/posts/${id}/delete`, { reason }),
+    api.post(`/admin/posts/${id}/delete`, { reason }),
 }

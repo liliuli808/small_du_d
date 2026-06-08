@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
-  Dimensions,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -17,25 +16,12 @@ import { useQuery } from '@tanstack/react-query';
 import PostCard from '../../components/PostCard';
 import Avatar from '../../components/Avatar';
 import { categoryAPI } from '../../api';
+import type { Moderator } from '../../api';
 import { useAuthStore } from '../../store/authStore';
-import { Category } from '../../api/category';
 import { Post } from '../../api/post';
 import { RootStackParamList } from '../../navigation/RootNavigator';
 
-const { width } = Dimensions.get('window');
-
 type CategoryDetailRouteProp = RouteProp<RootStackParamList, 'CategoryDetail'>;
-
-interface Moderator {
-  id: number;
-  userId: number;
-  role: number;
-  user?: {
-    id: number;
-    nickname: string;
-    avatarUrl: string;
-  };
-}
 
 export default function CategoryDetailScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -45,7 +31,6 @@ export default function CategoryDetailScreen() {
   const user = useAuthStore((state) => state.user);
   const [activeTab, setActiveTab] = useState<'posts' | 'rules' | 'mods'>('posts');
 
-  const isModerator = user && moderators?.some((m: Moderator) => m.userId === user.id);
   const [refreshing, setRefreshing] = useState(false);
   const [cursor, setCursor] = useState<string | undefined>(undefined);
   const [posts, setPosts] = useState<Post[]>([]);
@@ -54,8 +39,16 @@ export default function CategoryDetailScreen() {
   // 获取分区详情
   const { data: category, refetch: refetchCategory } = useQuery({
     queryKey: ['categoryDetail', categoryId],
-    queryFn: () => categoryAPI.getDetail(categoryId) as Promise<Category>,
+    queryFn: () => categoryAPI.getDetail(categoryId),
   });
+
+  // 获取负责人列表
+  const { data: moderators } = useQuery({
+    queryKey: ['categoryModerators', categoryId],
+    queryFn: () => categoryAPI.getModerators(categoryId),
+  });
+
+  const isModerator = user && moderators?.some((m: Moderator) => m.userId === user.id);
 
   // 获取帖子列表
   const { isLoading: postsLoading, refetch: refetchPosts } = useQuery({
@@ -67,12 +60,6 @@ export default function CategoryDetailScreen() {
       setHasMore(res.hasMore);
       return res;
     },
-  });
-
-  // 获取负责人列表
-  const { data: moderators } = useQuery({
-    queryKey: ['categoryModerators', categoryId],
-    queryFn: () => categoryAPI.getModerators(categoryId) as Promise<Moderator[]>,
   });
 
   const onRefresh = useCallback(async () => {
@@ -171,7 +158,7 @@ export default function CategoryDetailScreen() {
   const renderModerators = () => (
     <View style={styles.modsContainer}>
       {moderators && moderators.length > 0 ? (
-        moderators.map((mod) => (
+        moderators.map((mod: Moderator) => (
           <View key={mod.id} style={styles.modItem}>
             <Avatar nickname={mod.user?.nickname || '?'} size={44} />
             <View style={styles.modInfo}>

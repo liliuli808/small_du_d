@@ -1,4 +1,4 @@
-import request from './request'
+import { api } from './request'
 
 export interface Category {
   id: number
@@ -16,11 +16,11 @@ export interface Category {
 }
 
 export const categoryAPI = {
-  getList: () => request.get('/admin/categories'),
+  getList: () => api.get<Category[]>('/admin/categories'),
 
   create: (data: Partial<Category>) =>
-    request.post('/admin/categories', data),
+    api.post<Category>('/admin/categories', data),
 
   update: (id: number, data: Partial<Category>) =>
-    request.put(`/admin/categories/${id}`, data),
+    api.put<Category>(`/admin/categories/${id}`, data),
 }

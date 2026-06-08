@@ -1,4 +1,4 @@
-import request from './request';
+import { api, PaginatedResponse } from './request';
 
 export interface Comment {
   id: number;
@@ -17,13 +17,13 @@ export interface Comment {
 
 export const commentAPI = {
   getList: (postId: number, limit?: number, offset?: number) =>
-    request.get(`/posts/${postId}/comments`, {
+    api.get<PaginatedResponse<Comment>>(`/posts/${postId}/comments`, {
       params: { limit, offset },
     }),
 
   create: (postId: number, content: string, parentId?: number) =>
-    request.post(`/posts/${postId}/comments`, { content, parentId }),
+    api.post<Comment>(`/posts/${postId}/comments`, { content, parentId }),
 
   delete: (id: number) =>
-    request.delete(`/comments/${id}`),
+    api.delete(`/comments/${id}`),
 };

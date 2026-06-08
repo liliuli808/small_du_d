@@ -73,7 +73,8 @@ export default function PostDetailScreen() {
     refetch: refetchComments,
   } = useQuery({
     queryKey: ['comments', postId],
-    queryFn: () => commentAPI.getList(postId, 50, 0) as Promise<Comment[]>,
+    queryFn: () => commentAPI.getList(postId, 50, 0),
+    select: (res) => res.items,
   });
 
   // 发表评论

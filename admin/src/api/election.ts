@@ -1,4 +1,4 @@
-import request from './request'
+import { api } from './request'
 
 export interface Election {
   id: number
@@ -13,7 +13,7 @@ export interface Election {
 }
 
 export const electionAPI = {
-  getList: () => request.get('/admin/elections'),
+  getList: () => api.get<Election[]>('/admin/elections'),
 
   create: (data: {
     categoryId: string
@@ -23,8 +23,8 @@ export const electionAPI = {
     voteStartAt: string
     voteEndAt: string
     publicityEndAt: string
-  }) => request.post('/admin/elections', data),
+  }) => api.post<Election>('/admin/elections', data),
 
   finish: (id: number) =>
-    request.post(`/admin/elections/${id}/finish`),
+    api.post(`/admin/elections/${id}/finish`),
 }

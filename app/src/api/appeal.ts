@@ -1,4 +1,4 @@
-import request from './request'
+import { api } from './request'
 
 export interface Appeal {
   id: number
@@ -7,7 +7,7 @@ export interface Appeal {
   targetId: number
   categoryId?: number
   reason: string
-  status: number // 0:待处理 1:已通过 2:已驳回
+  status: number
   handlerId?: number
   handleResult?: string
   handledAt?: string
@@ -16,13 +16,13 @@ export interface Appeal {
 
 export const appealAPI = {
   create: (data: { targetType: number; targetId: number; categoryId?: number; reason: string }) =>
-    request.post('/appeals', data),
+    api.post<Appeal>('/appeals', data),
 
   getMyAppeals: (limit?: number, offset?: number) =>
-    request.get('/appeals/my', {
+    api.get<Appeal[]>('/appeals/my', {
       params: { limit, offset },
     }),
 
   getDetail: (id: number) =>
-    request.get(`/appeals/${id}`),
+    api.get<Appeal>(`/appeals/${id}`),
 }

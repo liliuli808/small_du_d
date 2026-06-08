@@ -1,7 +1,6 @@
 package account
 
 import (
-	"net/http"
 	"time"
 
 	"anonymous-community/internal/config"

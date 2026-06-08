@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import {
-  Card, Table, Button, Space, Switch, Modal, Form, Input, InputNumber,
-  message, Popconfirm,
+  Table, Button, Space, Switch, Modal, Form, Input, InputNumber,
+  message,
 } from 'antd'
 import { categoryAPI, Category } from '../api/category'
 

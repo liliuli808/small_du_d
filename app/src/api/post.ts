@@ -1,4 +1,4 @@
-import request from './request';
+import { api, PaginatedResponse } from './request';
 
 export interface Post {
   id: number;
@@ -42,22 +42,22 @@ export interface CreatePostParams {
 
 export const postAPI = {
   getFeed: (sort?: string, cursor?: string, limit?: number) =>
-    request.get('/posts/feed', {
+    api.get<PaginatedResponse<Post>>('/posts/feed', {
       params: { sort, cursor, limit },
     }),
 
   getPost: (id: number) =>
-    request.get(`/posts/${id}`),
+    api.get<Post>(`/posts/${id}`),
 
   createPost: (params: CreatePostParams) =>
-    request.post('/posts', params),
+    api.post<Post>('/posts', params),
 
   deletePost: (id: number) =>
-    request.delete(`/posts/${id}`),
+    api.delete(`/posts/${id}`),
 
   likePost: (id: number) =>
-    request.post(`/posts/${id}/like`),
+    api.post<{ id: number }>(`/posts/${id}/like`),
 
   unlikePost: (id: number) =>
-    request.delete(`/posts/${id}/like`),
+    api.delete(`/posts/${id}/like`),
 };

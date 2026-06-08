@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
-import { Layout as AntLayout, Menu, Button, Avatar, Dropdown } from 'antd'
+import { Layout as AntLayout, Menu, Avatar, Dropdown } from 'antd'
 import {
   DashboardOutlined,
   UserOutlined,
@@ -9,7 +9,7 @@ import {
   WarningOutlined,
   SafetyOutlined,
   TrophyOutlined,
-  GavelOutlined,
+  AuditOutlined,
   LogoutOutlined,
 } from '@ant-design/icons'
 import { useAuthStore } from '../store/authStore'
@@ -24,7 +24,7 @@ const menuItems = [
   { key: '/reports', icon: <WarningOutlined />, label: '举报管理' },
   { key: '/moderators', icon: <SafetyOutlined />, label: '负责人管理' },
   { key: '/elections', icon: <TrophyOutlined />, label: '选举管理' },
-  { key: '/appeals', icon: <GavelOutlined />, label: '申诉管理' },
+  { key: '/appeals', icon: <AuditOutlined />, label: '申诉管理' },
 ]
 
 export default function Layout() {
@@ -32,7 +32,7 @@ export default function Layout() {
   const location = useLocation()
   const logout = useAuthStore((state) => state.logout)
   const user = useAuthStore((state) => state.user)
-  const [collapsed, setCollapsed] = useState(false)
+  const [collapsed] = useState(false)
 
   return (
     <AntLayout style={{ minHeight: '100vh', background: '#F1F5F9' }}>

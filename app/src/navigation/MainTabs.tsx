@@ -14,6 +14,7 @@ import { RootStackParamList } from './RootNavigator';
 export type MainTabParamList = {
   Home: undefined;
   Category: undefined;
+  Publish: undefined;
   Message: undefined;
   Profile: undefined;
 };
@@ -36,7 +37,7 @@ function PublishButton() {
 function MessageIcon({ color, size }: { color: string; size: number }) {
   const { data } = useQuery({
     queryKey: ['notifications-unread'],
-    queryFn: () => notificationAPI.getList(1, 0) as Promise<{ unreadCount: number }>,
+    queryFn: () => notificationAPI.getList(1, 0),
   });
   const unreadCount = data?.unreadCount || 0;
 

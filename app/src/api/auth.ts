@@ -1,4 +1,4 @@
-import request from './request';
+import { api } from './request';
 
 export interface LoginParams {
   username: string;
@@ -23,22 +23,28 @@ export interface UserInfo {
   createdAt: string;
 }
 
+export interface LoginResult {
+  accessToken: string;
+  refreshToken: string;
+  user: UserInfo;
+}
+
 export const authAPI = {
   login: (params: LoginParams) =>
-    request.post('/auth/login', params),
+    api.post<LoginResult>('/auth/login', params),
 
   register: (params: RegisterParams) =>
-    request.post('/auth/register', params),
+    api.post<LoginResult>('/auth/register', params),
 
   refresh: (refreshToken: string) =>
-    request.post('/auth/refresh', { refreshToken }),
+    api.post<{ accessToken: string; refreshToken: string }>('/auth/refresh', { refreshToken }),
 
   getMe: () =>
-    request.get('/users/me'),
+    api.get<UserInfo>('/users/me'),
 
   updateMe: (data: Partial<UserInfo>) =>
-    request.put('/users/me', data),
+    api.put<UserInfo>('/users/me', data),
 
   changePassword: (data: { oldPassword: string; newPassword: string }) =>
-    request.put('/users/me/password', data),
+    api.put('/users/me/password', data),
 };

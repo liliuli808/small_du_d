@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Card, Table, Button, Space, Tag, Modal, Form, Input, Select, message, Popconfirm } from 'antd'
+import { Table, Button, Space, Tag, Modal, Form, Input, Select, message, Popconfirm } from 'antd'
 import { moderatorAPI, Moderator } from '../api/moderator'
 
 const roleMap: Record<number, string> = {

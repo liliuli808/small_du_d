@@ -15,7 +15,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { launchImageLibrary, ImagePickerResponse, Asset } from 'react-native-image-picker';
-import { postAPI, request } from '../../api';
+import { api, postAPI } from '../../api';
 import { useAppStore } from '../../store/appStore';
 
 interface SelectedImage {
@@ -38,12 +38,22 @@ interface UploadedImage {
   thumbHeight?: number;
 }
 
+interface UploadResponse {
+  url: string;
+  thumbUrl: string;
+  objectKey: string;
+  width: number;
+  height: number;
+  thumbWidth?: number;
+  thumbHeight?: number;
+}
+
 export default function PublishScreen() {
   const navigation = useNavigation();
   const showToast = useAppStore((state) => state.showToast);
 
   const [content, setContent] = useState('');
-  const [categoryId, setCategoryId] = useState<number | null>(1);
+  const [categoryId] = useState<number | null>(1);
   const [images, setImages] = useState<SelectedImage[]>([]);
   const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
   const [loading, setLoading] = useState(false);
@@ -106,7 +116,7 @@ export default function PublishScreen() {
         mediaType: 'photo',
         selectionLimit: remainingSlots,
         includeBase64: false,
-        quality: 0.85,
+        quality: 0.85 as any,
         maxWidth: 1920,
         maxHeight: 1920,
       },
@@ -152,7 +162,7 @@ export default function PublishScreen() {
     } as any);
 
     try {
-      const res = await request.post('/upload', formData, {
+      const res = await api.post<UploadResponse>('/upload', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },

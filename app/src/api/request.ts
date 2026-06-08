@@ -3,7 +3,7 @@ import { MMKV } from 'react-native-mmkv';
 
 const storage = new MMKV();
 
-const BASE_URL = 'http://localhost:8080/api/v1';
+const BASE_URL = 'http://localhost:8082/api/v1';
 
 const request: AxiosInstance = axios.create({
   baseURL: BASE_URL,
@@ -69,5 +69,25 @@ request.interceptors.response.use(
     return Promise.reject(error);
   },
 );
+
+export interface PaginatedResponse<T> {
+  items: T[];
+  nextCursor?: string;
+  hasMore: boolean;
+}
+
+export const api = {
+  get: <T = any>(url: string, config?: AxiosRequestConfig): Promise<T> =>
+    request.get(url, config) as any,
+
+  post: <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> =>
+    request.post(url, data, config) as any,
+
+  put: <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> =>
+    request.put(url, data, config) as any,
+
+  delete: <T = any>(url: string, config?: AxiosRequestConfig): Promise<T> =>
+    request.delete(url, config) as any,
+};
 
 export default request;

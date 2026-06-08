@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"image"
+	"image/color"
 	"image/gif"
 	"image/jpeg"
 	"image/png"
@@ -11,7 +12,6 @@ import (
 	"mime/multipart"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -264,7 +264,7 @@ func resizeImage(src image.Image, maxWidth, maxHeight int) image.Image {
 }
 
 // bilinearSample 双线性采样
-func bilinearSample(img image.Image, x, y float64) image.Color {
+func bilinearSample(img image.Image, x, y float64) color.Color {
 	x0 := int(x)
 	y0 := int(y)
 	x1 := x0 + 1
@@ -294,7 +294,7 @@ func bilinearSample(img image.Image, x, y float64) image.Color {
 	b := uint32(float64(b00)*w00 + float64(b10)*w10 + float64(b01)*w01 + float64(b11)*w11)
 	a := uint32(float64(a00)*w00 + float64(a10)*w10 + float64(a01)*w01 + float64(a11)*w11)
 
-	return image.NRGBAColor{
+	return color.NRGBA{
 		R: uint8(r >> 8),
 		G: uint8(g >> 8),
 		B: uint8(b >> 8),

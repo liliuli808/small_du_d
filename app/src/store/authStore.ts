@@ -8,6 +8,7 @@ interface User {
   nickname: string;
   avatarUrl: string;
   role: number;
+  username?: string;
 }
 
 interface AuthState {
